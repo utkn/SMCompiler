@@ -10,11 +10,19 @@ MODIFY THIS FILE.
 """
 
 import base64
+from enum import Enum
 import random
 from typing import Optional
 
 
 ID_BYTES = 4
+
+class ExprType(Enum):
+    ADD = 1
+    SUB = 2
+    MUL = 3
+    SCALAR = 4
+    SECRET = 5
 
 
 def gen_id() -> bytes:
@@ -22,83 +30,134 @@ def gen_id() -> bytes:
         random.getrandbits(8) for _ in range(ID_BYTES)
     )
     return base64.b64encode(id_bytes)
+    
 
-
+# Represents an expression.
 class Expression:
     """
     Base class for an arithmetic expression.
     """
 
-    def __init__(
-            self,
-            id: Optional[bytes] = None
-        ):
+    def __init__(self, type: ExprType, id: Optional[bytes] = None):
         # If ID is not given, then generate one.
         if id is None:
             id = gen_id()
         self.id = id
+        self.type = type
 
     def __add__(self, other):
-        raise NotImplementedError("You need to implement this method.")
-
+        return AddOp(self, other, self.id)
 
     def __sub__(self, other):
-        raise NotImplementedError("You need to implement this method.")
-
+        return SubOp(self, other, self.id)
 
     def __mul__(self, other):
-        raise NotImplementedError("You need to implement this method.")
-
+        return MulOp(self, other, self.id)
 
     def __hash__(self):
         return hash(self.id)
 
+    def prec(self) -> int:
+        """
+        Returns the precedence of the expression.
+        """
 
-    # Feel free to add as many methods as you like.
+        if self.type == ExprType.MUL:
+            return 2
+        elif self.type == ExprType.ADD:
+            return 1
+        elif self.type == ExprType.SUB:
+            return 1
+        return 3
+    
+    def is_term(self) -> bool:
+        """
+        Returns true iff the expression is a term.
+        """
+
+        return self.type == ExprType.SECRET or self.type == ExprType.SCALAR
+
+    def child_repr(self, child) -> str:
+        """
+        Returns a correct representation of the given child expression, wrapping with parantheses if necessary.
+        """
+
+        child_str = repr(child)
+        if child.prec() < self.prec():
+            return f"({child_str})"
+        return child_str
+
+
+class SubOp(Expression):
+    """
+    Represents a subtraction operation.
+    """
+
+    def __init__(self, left: Expression, right: Expression, id: Optional[bytes] = None):
+        self.left = left
+        self.right = right
+        super().__init__(ExprType.SUB, id)
+    
+    def __repr__(self):
+        return f"{self.child_repr(self.left)} - {self.child_repr(self.right)}" 
+
+
+class AddOp(Expression):
+    """
+    Represents an addition operation.
+    """
+
+    def __init__(self, left: Expression, right: Expression, id: Optional[bytes] = None):
+        self.left = left
+        self.right = right
+        super().__init__(ExprType.ADD, id)
+    
+    def __repr__(self):
+        return f"{self.child_repr(self.left)} + {self.child_repr(self.right)}"
+    
+
+class MulOp(Expression):
+    """
+    Represents a multiplication operation.
+    """
+
+    def __init__(self, left: Expression, right: Expression, id: Optional[bytes] = None):
+        self.left = left
+        self.right = right
+        super().__init__(ExprType.MUL, id)
+
+    def __repr__(self):
+        return f"{self.child_repr(self.left)} * {self.child_repr(self.right)}" 
 
 
 class Scalar(Expression):
-    """Term representing a scalar finite field value."""
+    """
+    Term representing a scalar finite field value.
+    """
 
-    def __init__(
-            self,
-            value: int,
-            id: Optional[bytes] = None
-        ):
+    def __init__(self, value: int, id: Optional[bytes] = None):
         self.value = value
-        super().__init__(id)
-
+        super().__init__(ExprType.SCALAR, id)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({repr(self.value)})"
-
+        return f"Scalar({repr(self.value)})"
 
     def __hash__(self):
         return
-
-
     # Feel free to add as many methods as you like.
 
 
 class Secret(Expression):
-    """Term representing a secret finite field value (variable)."""
+    """
+    Term representing a secret finite field value (variable).
+    """
 
-    def __init__(
-            self,
-            value: Optional[int] = None,
-            id: Optional[bytes] = None
-        ):
+    def __init__(self, value: Optional[int] = None, id: Optional[bytes] = None):
         self.value = value
-        super().__init__(id)
-
+        super().__init__(ExprType.SECRET, id)
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}({self.value if self.value is not None else ''})"
-        )
-
-
+        return f"Secret({self.value if self.value is not None else ''})"
     # Feel free to add as many methods as you like.
-
 
 # Feel free to add as many classes as you like.

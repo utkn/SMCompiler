@@ -1,3 +1,5 @@
 handout
 report_template
 .DS_Store
+__pycache__
+venv
