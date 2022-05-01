@@ -2,40 +2,84 @@
 Secret sharing scheme.
 """
 
+import random
 from typing import List
 
+default_q = 331
+
+
+def rand_Zq(q = default_q):
+    return random.randint(0, q-1)
 
 class Share:
     """
     A secret share in a finite field.
     """
 
-    def __init__(self, *args, **kwargs):
-        # Adapt constructor arguments as you wish
-        raise NotImplementedError("You need to implement this method.")
+    def __init__(self, index: int, value: int, is_scalar: bool = False):
+        self.value = value
+        self.index = index
+        self.is_scalar = is_scalar
+
 
     def __repr__(self):
         # Helps with debugging.
-        raise NotImplementedError("You need to implement this method.")
+        return f"Share({self.value})"
+
 
     def __add__(self, other):
-        raise NotImplementedError("You need to implement this method.")
+        """
+        Either adds another share or a scalar.
+        """
+        # If the other is a `Share`, then do share + share addition.
+        if isinstance(other, Share):
+            assert self.index == other.index
+            return Share(self.index, self.value + other.value)
+        # Otherwise, do share + scalar addition
+        if isinstance(other, int):
+            # Only do the addition if this share is the first share.
+            if self.index == 0:
+                return Share(self.index, self.value + other)
+            return Share(self.index, self.value)
+        raise RuntimeError()
+
 
     def __sub__(self, other):
-        raise NotImplementedError("You need to implement this method.")
+        """
+        Either subtracts another share or a scalar.
+        """
+        # If the other is a `Share`, then do share - share subtraction.
+        if isinstance(other, Share):
+            assert self.index == other.index
+            return Share(self.index, self.value - other.value)
+        raise RuntimeError()
+
 
     def __mul__(self, other):
-        raise NotImplementedError("You need to implement this method.")
+        """
+        Either multiplies another share or a scalar.
+        """
+        # If the other is a `Share`, then do share * share multiplication.
+        if isinstance(other, Share):
+            assert self.index == other.index
+            raise NotImplementedError("You need to implement this method.")
+        
+        # Otherwise, do share * scalar multiplication.
+        if isinstance(other, int):
+            return Share(self.index, self.value * other)
+        raise RuntimeError()
 
 
 def share_secret(secret: int, num_shares: int) -> List[Share]:
     """Generate secret shares."""
-    raise NotImplementedError("You need to implement this method.")
+    # Calculate s_i for i \in [1, N-1]
+    share_values = [rand_Zq() for _ in range(num_shares-1)]
+    # Calculate s_0 and prepend.
+    share_values = [(secret - sum(share_values)) % default_q] + share_values
+    # Return the shares s_0, s_1, ..., s_{N-1}
+    return [Share(i, s) for i, s in enumerate(share_values)]
 
 
 def reconstruct_secret(shares: List[Share]) -> int:
     """Reconstruct the secret from shares."""
-    raise NotImplementedError("You need to implement this method.")
-
-
-# Feel free to add as many methods as you want.
+    return sum([s.value for s in shares]) % default_q

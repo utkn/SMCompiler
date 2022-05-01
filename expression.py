@@ -144,7 +144,6 @@ class Scalar(Expression):
 
     def __hash__(self):
         return
-    # Feel free to add as many methods as you like.
 
 
 class Secret(Expression):
@@ -158,6 +157,3 @@ class Secret(Expression):
 
     def __repr__(self):
         return f"Secret({self.value if self.value is not None else ''})"
-    # Feel free to add as many methods as you like.
-
-# Feel free to add as many classes as you like.

@@ -20,9 +20,5 @@ def test_expr_construction():
     assert repr((a + b) * c * Scalar(4) + Scalar(3)) == "(Secret(1) + Secret(2)) * Secret(3) * Scalar(4) + Scalar(3)"
 
 
-def test():
-    pass
-
-
 if __name__ == "__main__":
     test_expr_construction()
