@@ -7,7 +7,7 @@ MODIFY THIS FILE.
 
 
 import itertools
-from secret_sharing import reconstruct_secret, share_secret, default_q
+from secret_sharing import Share, reconstruct_secret, share_secret, default_q
 
 
 def test_secret_sharing_reconstruction():
@@ -35,12 +35,18 @@ def test_secret_sharing_addition():
         shares2 = share_secret(s2, N)
         result = []
         for i in range(N):
-            result.append(shares1[i] + shares2[i])
+            r1 = shares1[i] + shares2[i]
+            r2 =  shares2[i] + shares1[i]
+            assert r1.value == r2.value
+            result.append(r1)
         assert reconstruct_secret(result) == (s1 + s2) % default_q
         # Test for share + scalar
         result = []
         for i in range(N):
-            result.append(shares1[i] + s2)
+            r1 = shares1[i] + Share(i, s2, True)
+            r2 = Share(i, s2, True) + shares1[i]
+            assert r1.value == r2.value
+            result.append(r1)
         assert reconstruct_secret(result) == (s1 + s2) % default_q
 
 
@@ -71,7 +77,10 @@ def test_secret_sharing_multiplication():
         shares1 = share_secret(s1, N)
         result = []
         for i in range(N):
-            result.append(shares1[i] * s2)
+            r1 = shares1[i] * Share(i, s2, True)
+            r2 = Share(i, s2, True) * shares1[i]
+            assert r1.value == r2.value
+            result.append(r1)
         assert reconstruct_secret(result) == (s1 * s2) % default_q
 
 

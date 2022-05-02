@@ -75,7 +75,7 @@ def retrieve_share(client_id: str, op_id: str):
     """
     shares = ttp.retrieve_share(client_id, op_id)
     # TODO: fixme
-    return jsonify([share.bn for share in shares]), 200
+    return jsonify([share.value for share in shares]), 200
 
 
 def _set_value(pool: str, channel: Tuple[str, str], data: bytes) -> None:

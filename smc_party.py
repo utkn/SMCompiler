@@ -9,6 +9,7 @@ import collections
 import json
 from typing import (
     Dict,
+    List,
     Set,
     Tuple,
     Union
@@ -31,6 +32,7 @@ from secret_sharing import(
     share_secret,
     Share,
     unserialize_share,
+    default_q
 )
 
 # Feel free to add as many imports as you want.
@@ -78,24 +80,33 @@ class SMCParty:
         self.send_result_share(result_share)
             
         # Retrieve the other resulting shares.
-        all_result_shares = []
-        for participant in self.protocol_spec.participant_ids:
-            share = self.receive_result_share(participant)
-            all_result_shares.append(share)
+        all_result_shares = self.receive_all_result_shares()
 
         # Reconstruct & return.
         return reconstruct_secret(all_result_shares)
 
     
-    def send_result_share(self, share: Share):
+    def receive_all_result_shares(self, info: str = "") -> List[Share]:
+        all_result_shares = []
+        for participant in self.protocol_spec.participant_ids:
+            share = self.receive_result_share(participant, info)
+            all_result_shares.append(share)
+        return all_result_shares
+
+
+    def send_result_share(self, share: Share, info: str = ""):
         label = f"result-share-{self.client_id}"
+        if info != "":
+            label += f"-{info}"
         print(f"SMCParty: Broadcasting result share {label}: {self.client_id} ->")
         payload = serialize_share(share)
         self.comm.publish_message(label, payload)
     
 
-    def receive_result_share(self, src_id: str) -> Share:
+    def receive_result_share(self, src_id: str, info: str = "") -> Share:
         label = f"result-share-{src_id}"
+        if info != "":
+            label += f"-{info}"
         print(f"SMCParty: Receiving result share {label}: -> {self.client_id}")
         payload = self.comm.retrieve_public_message(src_id, label)
         return unserialize_share(payload)
@@ -148,24 +159,39 @@ class SMCParty:
     def process_add(self, expr: AddOp) -> Share:
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
-        first, second = reorder_shares(left_share, right_share)
-        return first + second
+        return left_share + right_share
         
     
     def process_mul(self, expr: MulOp) -> Share:
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
-        first, second = reorder_shares(left_share, right_share)
-        return first * second
-
+        # If either of the operands are scalars, then do simple scalar * share multiplication.
+        if left_share.is_scalar or right_share.is_scalar:
+            return left_share * right_share
+        # Otherwise, do share * share multiplications
+        # The operation ID is always the minimum ID of the child expressions.
+        op_id = min(int.from_bytes(expr.left.id, byteorder="big"), int.from_bytes(expr.right.id, byteorder="big"))
+        # Receive the Beaver triplet.
+        a, b, c = self.comm.retrieve_beaver_triplet_shares(f"{op_id}")
+        # Convert the triplet into shares.
+        a, b, c = Share(left_share.index, a), Share(left_share.index, b), Share(left_share.index, c)
+        X_share = left_share - a
+        Y_share = right_share - b
+        self.send_result_share(X_share, info=f"{op_id}-X")
+        self.send_result_share(Y_share, info=f"{op_id}-Y")
+        X_shares = self.receive_all_result_shares(info=f"{op_id}-X")
+        Y_shares = self.receive_all_result_shares(info=f"{op_id}-Y")
+        X = reconstruct_secret(X_shares)
+        Y = reconstruct_secret(Y_shares)
+        X = Share(left_share.index, X, True)
+        Y = Share(left_share.index, Y, True)
+        result = c + (left_share * Y) + (right_share * X)
+        if left_share.index == 0:
+            result.value = (result.value - (X.value * Y.value)) % default_q
+        return result
+        
 
     def process_sub(self, expr: SubOp) -> Share:
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
-        first, second = reorder_shares(left_share, right_share)
-        return first - second
-
-
-# Reorder the given shares such that if one of them is a scalar, it is returned as the second return value.
-def reorder_shares(left_share: Share, right_share: Share) -> Tuple[Share, Share]:
-    return (right_share, left_share) if left_share.is_scalar else (left_share, right_share)
+        return left_share - right_share

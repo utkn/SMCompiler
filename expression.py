@@ -46,13 +46,13 @@ class Expression:
         self.type = type
 
     def __add__(self, other):
-        return AddOp(self, other, self.id)
+        return AddOp(self, other)
 
     def __sub__(self, other):
-        return SubOp(self, other, self.id)
+        return SubOp(self, other)
 
     def __mul__(self, other):
-        return MulOp(self, other, self.id)
+        return MulOp(self, other)
 
     def __hash__(self):
         return hash(self.id)
