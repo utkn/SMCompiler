@@ -25,7 +25,7 @@ from secret_sharing import (
     serialize_share,
     share_secret,
     Share,
-    unserialize_share,
+    deserialize_share,
     FieldElement, ScalarElement, BeaverDistributor
 )
 
@@ -95,7 +95,7 @@ class SMCParty:
             label += f"-{info}"
         print(f"SMCParty: Receiving result share {label}: -> {self.client_id}")
         payload = self.comm.retrieve_public_message(src_id, label)
-        return unserialize_share(payload)
+        return deserialize_share(payload)
 
     def send_secret_share(self, dest_id: str, secret_id: bytes, share: Share):
         """
@@ -115,7 +115,7 @@ class SMCParty:
         label = f"secret-share-{secret_id}"
         print(f"SMCParty: Receiving secret share {label}: -> {self.client_id}")
         payload = self.comm.retrieve_private_message(label)
-        return unserialize_share(payload)
+        return deserialize_share(payload)
 
     def process_expression(self, expr: Expression) -> FieldElement:
         if isinstance(expr, AddOp):

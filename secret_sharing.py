@@ -130,7 +130,7 @@ def serialize_share(share: Share) -> bytes:
     return s.encode("utf-8")
 
 
-def unserialize_share(b: bytes) -> Share:
+def deserialize_share(b: bytes) -> Share:
     """Reconstructs a share from its byte representation received over the wire."""
     fields = b.decode("utf-8").split("|")
     return Share(int(fields[0]), int(fields[1]))
