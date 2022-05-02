@@ -31,43 +31,41 @@ class Share:
         """
         Either adds another share or a scalar.
         """
-        # If the other is a `Share`, then do share + share addition.
-        if isinstance(other, Share):
+        assert isinstance(other, Share)
+        # If the other is a non-scalar, then do share + share addition.
+        if not other.is_scalar:
             assert self.index == other.index
             return Share(self.index, self.value + other.value)
         # Otherwise, do share + scalar addition
-        if isinstance(other, int):
-            # Only do the addition if this share is the first share.
-            if self.index == 0:
-                return Share(self.index, self.value + other)
-            return Share(self.index, self.value)
-        raise RuntimeError()
+        # Only do the addition if this share is the first share.
+        if self.index == 0:
+            return Share(self.index, self.value + other.value)
+        return Share(self.index, self.value)
 
 
     def __sub__(self, other):
         """
         Either subtracts another share or a scalar.
         """
-        # If the other is a `Share`, then do share - share subtraction.
-        if isinstance(other, Share):
+        assert isinstance(other, Share)
+        # If the other is a non-scalar, then do share - share subtraction.
+        if not other.is_scalar:
             assert self.index == other.index
             return Share(self.index, self.value - other.value)
-        raise RuntimeError()
+        raise RuntimeError("scalar - share is not allowed!")
 
 
     def __mul__(self, other):
         """
         Either multiplies another share or a scalar.
         """
-        # If the other is a `Share`, then do share * share multiplication.
-        if isinstance(other, Share):
+        assert isinstance(other, Share)
+        # If the other is a non-scalar, then do share * share multiplication.
+        if not other.is_scalar:
             assert self.index == other.index
             raise NotImplementedError("You need to implement this method.")
-        
         # Otherwise, do share * scalar multiplication.
-        if isinstance(other, int):
-            return Share(self.index, self.value * other)
-        raise RuntimeError()
+        return Share(self.index, self.value * other.value)
 
 
 def share_secret(secret: int, num_shares: int) -> List[Share]:
@@ -83,3 +81,11 @@ def share_secret(secret: int, num_shares: int) -> List[Share]:
 def reconstruct_secret(shares: List[Share]) -> int:
     """Reconstruct the secret from shares."""
     return sum([s.value for s in shares]) % default_q
+
+def serialize_share(share: Share) -> bytes:
+    s = f"{share.index}|{share.value}|{1 if share.is_scalar else 0}"
+    return s.encode("utf-8")
+
+def unserialize_share(b: bytes) -> Share:
+    fields = b.decode("utf-8").split("|")
+    return Share(int(fields[0]), int(fields[1]), fields[2] == "1")

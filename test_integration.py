@@ -239,3 +239,13 @@ def test_suite8():
     )
     expected = (((3 + 8) + (14 * 9) - 2) * (5 + 7))
     suite(parties, expr, expected)
+
+if __name__ == "__main__":
+    # test_suite8()
+    # test_suite7()
+    test_suite6()
+    # test_suite5()
+    # test_suite4()
+    # test_suite3()
+    # test_suite2()
+    # test_suite1()

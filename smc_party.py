@@ -27,8 +27,10 @@ from expression import (
 from protocol import ProtocolSpec
 from secret_sharing import(
     reconstruct_secret,
+    serialize_share,
     share_secret,
     Share,
+    unserialize_share,
 )
 
 # Feel free to add as many imports as you want.
@@ -71,13 +73,14 @@ class SMCParty:
         
         # Compute the expression and get the resulting share.
         result_share = self.process_expression(self.protocol_spec.expr)
+        print(f"SMCParty: {self.client_id} has found the result share!")
         # Publish the result share.
         self.send_result_share(result_share)
-
+            
         # Retrieve the other resulting shares.
         all_result_shares = []
         for participant in self.protocol_spec.participant_ids:
-            share = self.retrieve_result_share(participant)
+            share = self.receive_result_share(participant)
             all_result_shares.append(share)
 
         # Reconstruct & return.
@@ -86,33 +89,38 @@ class SMCParty:
     
     def send_result_share(self, share: Share):
         label = f"result-share-{self.client_id}"
-        payload = json.dumps(share).encode("utf-8")
+        print(f"SMCParty: Broadcasting result share {label}: {self.client_id} ->")
+        payload = serialize_share(share)
         self.comm.publish_message(label, payload)
     
-    def retrieve_result_share(self, src_id: str) -> Share:
-        label = f"result-share-{self.client_id}"
+
+    def receive_result_share(self, src_id: str) -> Share:
+        label = f"result-share-{src_id}"
+        print(f"SMCParty: Receiving result share {label}: -> {self.client_id}")
         payload = self.comm.retrieve_public_message(src_id, label)
-        result_dict = json.loads(payload.decode("utf-8"))
-        return Share(**result_dict)
+        return unserialize_share(payload)
 
 
-    def send_secret_share(self, dest_id: str, secret_id: int, share: Share):
+    def send_secret_share(self, dest_id: str, secret_id: bytes, share: Share):
         """
         Sends a secret share to the corresponding participant.
         """
+        secret_id = int.from_bytes(secret_id, byteorder="big")
         label = f"secret-share-{secret_id}"
-        payload = json.dumps(share).encode("utf-8")
+        print(f"SMCParty: Sending secret share {label}: {self.client_id} -> {dest_id}")
+        payload = serialize_share(share)
         self.comm.send_private_message(dest_id, label, payload)
     
 
-    def receive_secret_share(self, secret_id: int) -> Share:
+    def receive_secret_share(self, secret_id: bytes) -> Share:
         """
         Receives a secret share meant for this party.
         """
+        secret_id = int.from_bytes(secret_id, byteorder="big")
         label = f"secret-share-{secret_id}"
+        print(f"SMCParty: Receiving secret share {label}: -> {self.client_id}")
         payload = self.comm.retrieve_private_message(label)
-        share_dict = json.loads(payload.decode("utf-8"))
-        return Share(**share_dict)
+        return unserialize_share(payload)
 
 
     # Suggestion: To process expressions, make use of the *visitor pattern* like so:
@@ -160,4 +168,4 @@ class SMCParty:
 
 # Reorder the given shares such that if one of them is a scalar, it is returned as the second return value.
 def reorder_shares(left_share: Share, right_share: Share) -> Tuple[Share, Share]:
-    return right_share, left_share if left_share.is_scalar else left_share, right_share
+    return (right_share, left_share) if left_share.is_scalar else (left_share, right_share)
