@@ -4,8 +4,9 @@ Secret sharing scheme.
 
 import random
 from abc import ABC
-from typing import List, Tuple, Any, Callable
+from typing import List, Tuple, Callable
 
+# NOTE: Keep this large enough to pass the tests.
 default_q = 10337
 
 
@@ -141,6 +142,10 @@ def reorder_elements(left: FieldElement, right: FieldElement) -> Tuple[FieldElem
 
 
 class BeaverDistributor:
+    """
+    Represents a class that handles Beaver multiplication.
+    """
+
     def __init__(self,
                  labels: Tuple[str, str, str],
                  triplet_retriever: Callable[[str], Tuple[int, int, int]],
@@ -168,6 +173,8 @@ class BeaverDistributor:
         Y = ScalarElement(reconstruct_secret(Y_result_shares))
         return X, Y
 
+    # NOTE: We divide the execution into two: (1) before publishing, (2) after publishing. This is done to allow testing
+    #       in a more straightforward way!
     def execute_start(self, x: Share, y: Share) -> Tuple[Share, Share, Share]:
         # Receive the Beaver triplet.
         a, b, c = self.retrieve_triplet_shares(x.index)
@@ -190,5 +197,8 @@ class BeaverDistributor:
         return result
 
     def execute(self, x: Share, y: Share) -> Share:
+        """
+        Calculates x * y using Beaver multiplication.
+        """
         state = self.execute_start(x, y)
         return self.execute_end(state)
