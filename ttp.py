@@ -13,7 +13,7 @@ from typing import (
 )
 
 from communication import Communication
-from secret_sharing import(
+from secret_sharing import (
     rand_Zq,
     share_secret,
     default_q,
@@ -30,7 +30,6 @@ class TrustedParamGenerator:
         self.participant_ids: List[str] = []
         self.generated_shares: Dict[str, Tuple[List[Share], List[Share], List[Share]]] = dict()
 
-
     def add_participant(self, participant_id: str) -> None:
         """
         Add a participant.
@@ -42,7 +41,7 @@ class TrustedParamGenerator:
         """
         Retrieve a triplet of shares for a given client_id.
         """
-        assert client_id in self.participant_ids  
+        assert client_id in self.participant_ids
         # If no triplets were generated for the given operation, generate the shares.          
         if op_id not in self.generated_shares:
             # Choose random a, b, c.
@@ -58,4 +57,4 @@ class TrustedParamGenerator:
         shares = self.generated_shares.get(op_id)
         i = self.participant_ids.index(client_id)
         # Return the triplet.
-        return (shares[0][i], shares[1][i], shares[2][i])
+        return shares[0][i], shares[1][i], shares[2][i]

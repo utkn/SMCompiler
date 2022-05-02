@@ -94,7 +94,6 @@ def test_suite1():
     suite(parties, expr, expected)
 
 
-
 def test_suite2():
     """
     f(a, b) = a - b
@@ -108,7 +107,7 @@ def test_suite2():
     }
 
     expr = (alice_secret - bob_secret)
-    expected = 14 -3
+    expected = 14 - 3
     suite(parties, expr, expected)
 
 
@@ -205,9 +204,9 @@ def test_suite7():
     }
 
     expr = (
-        (alice_secret * bob_secret) +
-        (bob_secret * charlie_secret) +
-        (charlie_secret * alice_secret)
+            (alice_secret * bob_secret) +
+            (bob_secret * charlie_secret) +
+            (charlie_secret * alice_secret)
     )
     expected = ((3 * 14) + (14 * 2) + (2 * 3))
     suite(parties, expr, expected)
@@ -232,20 +231,22 @@ def test_suite8():
     }
 
     expr = (
-        (
-            (alice_secret + Scalar(8)) +
-            ((bob_secret * Scalar(9)) - charlie_secret)
-         ) * (david_secret + elusinia_secret)
+            (
+                    (alice_secret + Scalar(8)) +
+                    ((bob_secret * Scalar(9)) - charlie_secret)
+            ) * (david_secret + elusinia_secret)
     )
     expected = (((3 + 8) + (14 * 9) - 2) * (5 + 7))
     suite(parties, expr, expected)
 
+
 if __name__ == "__main__":
-    # test_suite8()
-    test_suite7()
+    test_suite8()
+    # test_suite7()
     # test_suite6()
     # test_suite5()
     # test_suite4()
     # test_suite3()
     # test_suite2()
     # test_suite1()
+    pass

@@ -10,12 +10,13 @@ MODIFY THIS FILE.
 """
 
 import base64
+from abc import ABC
 from enum import Enum
 import random
 from typing import Optional
 
-
 ID_BYTES = 4
+
 
 class ExprType(Enum):
     ADD = 1
@@ -30,10 +31,9 @@ def gen_id() -> bytes:
         random.getrandbits(8) for _ in range(ID_BYTES)
     )
     return base64.b64encode(id_bytes)
-    
 
-# Represents an expression.
-class Expression:
+
+class Expression(ABC):
     """
     Base class for an arithmetic expression.
     """
@@ -58,10 +58,7 @@ class Expression:
         return hash(self.id)
 
     def prec(self) -> int:
-        """
-        Returns the precedence of the expression.
-        """
-
+        """Returns the precedence of the expression."""
         if self.type == ExprType.MUL:
             return 2
         elif self.type == ExprType.ADD:
@@ -69,19 +66,13 @@ class Expression:
         elif self.type == ExprType.SUB:
             return 1
         return 3
-    
-    def is_term(self) -> bool:
-        """
-        Returns true iff the expression is a term.
-        """
 
+    def is_term(self) -> bool:
+        """Returns true iff the expression is a term."""
         return self.type == ExprType.SECRET or self.type == ExprType.SCALAR
 
     def child_repr(self, child) -> str:
-        """
-        Returns a correct representation of the given child expression, wrapping with parantheses if necessary.
-        """
-
+        """Returns a correct representation of the given child expression, wrapping with parentheses if necessary."""
         child_str = repr(child)
         if child.prec() < self.prec():
             return f"({child_str})"
@@ -97,9 +88,9 @@ class SubOp(Expression):
         self.left = left
         self.right = right
         super().__init__(ExprType.SUB, id)
-    
+
     def __repr__(self):
-        return f"{self.child_repr(self.left)} - {self.child_repr(self.right)}" 
+        return f"{self.child_repr(self.left)} - {self.child_repr(self.right)}"
 
 
 class AddOp(Expression):
@@ -111,10 +102,10 @@ class AddOp(Expression):
         self.left = left
         self.right = right
         super().__init__(ExprType.ADD, id)
-    
+
     def __repr__(self):
         return f"{self.child_repr(self.left)} + {self.child_repr(self.right)}"
-    
+
 
 class MulOp(Expression):
     """
@@ -127,7 +118,7 @@ class MulOp(Expression):
         super().__init__(ExprType.MUL, id)
 
     def __repr__(self):
-        return f"{self.child_repr(self.left)} * {self.child_repr(self.right)}" 
+        return f"{self.child_repr(self.left)} * {self.child_repr(self.right)}"
 
 
 class Scalar(Expression):

@@ -3,3 +3,5 @@ report_template
 .DS_Store
 __pycache__
 venv*
+.idea
+.pytest_cache
