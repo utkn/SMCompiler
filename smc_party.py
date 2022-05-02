@@ -7,7 +7,7 @@ MODIFY THIS FILE.
 
 from typing import (
     Dict,
-    List
+    List, Tuple, Callable
 )
 
 from communication import Communication
@@ -26,7 +26,7 @@ from secret_sharing import (
     share_secret,
     Share,
     unserialize_share,
-    FieldElement, ScalarElement
+    FieldElement, ScalarElement, BeaverDistributor
 )
 
 
@@ -55,7 +55,6 @@ class SMCParty:
         """
         The method the client use to do the SMC.
         """
-
         # For each secret of this party, distribute the shares among the participants.
         for secret, value in self.value_dict.items():
             all_participants = self.protocol_spec.participant_ids
@@ -64,7 +63,6 @@ class SMCParty:
             # Send the shares to the corresponding participants.
             for participant, share in zip(all_participants, shares):
                 self.send_secret_share(participant, secret.id, share)
-
         # Compute the expression and get the resulting share.
         result_share = self.process_expression(self.protocol_spec.expr)
         assert isinstance(result_share, Share)
@@ -151,28 +149,21 @@ class SMCParty:
         assert isinstance(left_share, Share)
         assert isinstance(right_share, Share)
         # Otherwise, do share * share multiplications
-        # Receive the Beaver triplet.
         op_id = expr.id.decode("utf-8")
-        a, b, c = self.comm.retrieve_beaver_triplet_shares(op_id)
-        # Convert the triplet into shares: [a], [b], [c].
-        a, b, c = Share(left_share.index, a), Share(left_share.index, b), Share(left_share.index, c)
-        # Blind the [x] and [y] by [x - a], [y - b]
-        X_share = left_share - a
-        Y_share = right_share - b
-        # Publicize our blinded shares.
-        self.send_result_share(X_share, info=f"{op_id}-X")
-        self.send_result_share(Y_share, info=f"{op_id}-Y")
-        # Receive the blinded result shares.
-        X_result_shares = self.receive_all_result_shares(info=f"{op_id}-X")
-        Y_result_shares = self.receive_all_result_shares(info=f"{op_id}-Y")
-        # Reconstruct X = (x - a), Y = (y - b)
-        X = ScalarElement(reconstruct_secret(X_result_shares))
-        Y = ScalarElement(reconstruct_secret(Y_result_shares))
-        # [z] = [c] + [x] * (y - b) + [y] * (x - a) - X * Y
-        result = c + left_share * Y + right_share * X - X * Y
-        return result
+        # Construct a beaver distributor.
+        beaver_dist = BeaverDistributor(
+            labels=(f"{op_id}", f"X-{op_id}", f"Y-{op_id}"),
+            triplet_retriever=self.comm.retrieve_beaver_triplet_shares,
+            blinded_share_publisher=self.send_result_share,
+            blinded_value_retriever=self.receive_all_result_shares
+        )
+        # Perform the beaver multiplication.
+        return beaver_dist.execute(left_share, right_share)
 
     def process_sub(self, expr: SubOp) -> Share:
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
         return left_share - right_share
+
+
+

@@ -4,7 +4,7 @@ Secret sharing scheme.
 
 import random
 from abc import ABC
-from typing import List, Tuple
+from typing import List, Tuple, Any, Callable
 
 default_q = 10337
 
@@ -138,3 +138,57 @@ def unserialize_share(b: bytes) -> Share:
 def reorder_elements(left: FieldElement, right: FieldElement) -> Tuple[FieldElement, FieldElement]:
     """Reorders two elements such that if one of them is a scalar, it is returned as the second return value."""
     return (right, left) if isinstance(left, ScalarElement) else (left, right)
+
+
+class BeaverDistributor:
+    def __init__(self,
+                 labels: Tuple[str, str, str],
+                 triplet_retriever: Callable[[str], Tuple[int, int, int]],
+                 blinded_share_publisher: Callable[[Share, str], None],
+                 blinded_value_retriever: Callable[[str], List[Share]]):
+        # Assign the labels.
+        self.retrieve_triplet_label, self.X_label, self.Y_label = labels
+        # Assign the calls.
+        self.triplet_retriever = triplet_retriever
+        self.blinded_share_publisher = blinded_share_publisher
+        self.blinded_value_retriever = blinded_value_retriever
+
+    def retrieve_triplet_shares(self, participant_index: int) -> Tuple[Share, Share, Share]:
+        a, b, c = self.triplet_retriever(self.retrieve_triplet_label)
+        return Share(participant_index, a), Share(participant_index, b), Share(participant_index, c)
+
+    def publish_blinded_shares(self, X_share: Share, Y_share: Share):
+        self.blinded_share_publisher(X_share, self.X_label)
+        self.blinded_share_publisher(Y_share, self.Y_label)
+
+    def receive_blinded_values(self) -> Tuple[ScalarElement, ScalarElement]:
+        X_result_shares = self.blinded_value_retriever(self.X_label)
+        Y_result_shares = self.blinded_value_retriever(self.Y_label)
+        X = ScalarElement(reconstruct_secret(X_result_shares))
+        Y = ScalarElement(reconstruct_secret(Y_result_shares))
+        return X, Y
+
+    def execute_start(self, x: Share, y: Share) -> Tuple[Share, Share, Share]:
+        # Receive the Beaver triplet.
+        a, b, c = self.retrieve_triplet_shares(x.index)
+        assert x.index == y.index and x.index == a.index and a.index == b.index and b.index == c.index
+        # Blind the [x] and [y] by [x - a], [y - b]
+        X_share = x - a
+        Y_share = y - b
+        assert isinstance(X_share, Share) and isinstance(Y_share, Share)
+        # Publicize our blinded shares.
+        self.publish_blinded_shares(X_share, Y_share)
+        # Return the intermediate state.
+        return c, x, y
+
+    def execute_end(self, state) -> Share:
+        c, x, y = state
+        # Receive the blinded X = (x - a) and Y = (y - a).
+        X, Y = self.receive_blinded_values()
+        # [z] = [c] + [x] * (y - b) + [y] * (x - a) - X * Y
+        result = c + x * Y + y * X - X * Y
+        return result
+
+    def execute(self, x: Share, y: Share) -> Share:
+        state = self.execute_start(x, y)
+        return self.execute_end(state)
