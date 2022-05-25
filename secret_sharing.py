@@ -143,7 +143,8 @@ def reorder_elements(left: FieldElement, right: FieldElement) -> Tuple[FieldElem
 
 class BeaverDistributor:
     """
-    Represents a class that handles Beaver multiplication.
+    Used as a Beaver multiplication helper to abstract away the exact mechanism used to retrieve and share triplets/shares.
+    This is helpful for testing and evaluation purposes.
     """
 
     def __init__(self,

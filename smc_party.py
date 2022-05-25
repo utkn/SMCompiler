@@ -5,28 +5,20 @@ MODIFY THIS FILE.
 """
 # You might want to import more classes if needed.
 
-from typing import (
-    Dict,
-    List, Tuple, Callable
-)
+from typing import Callable, Dict, List, Tuple
 
 from communication import Communication
-from expression import (
-    AddOp,
-    Expression,
-    MulOp,
-    Scalar,
-    Secret,
-    SubOp
-)
+from expression import AddOp, Expression, MulOp, Scalar, Secret, SubOp
 from protocol import ProtocolSpec
 from secret_sharing import (
+    BeaverDistributor,
+    FieldElement,
+    ScalarElement,
+    Share,
+    deserialize_share,
     reconstruct_secret,
     serialize_share,
     share_secret,
-    Share,
-    deserialize_share,
-    FieldElement, ScalarElement, BeaverDistributor
 )
 
 
@@ -75,6 +67,9 @@ class SMCParty:
         return reconstruct_secret(all_result_shares)
 
     def receive_all_result_shares(self, info: str = "") -> List[Share]:
+        """
+        Receives all result shares meant for this party.
+        """
         all_result_shares = []
         for participant in self.protocol_spec.participant_ids:
             share = self.receive_result_share(participant, info)
@@ -82,6 +77,9 @@ class SMCParty:
         return all_result_shares
 
     def send_result_share(self, share: Share, info: str = ""):
+        """
+        Publicizes this party's result share.
+        """
         label = f"result-share-{self.client_id}"
         if info != "":
             label += f"-{info}"
@@ -90,6 +88,9 @@ class SMCParty:
         self.comm.publish_message(label, payload)
 
     def receive_result_share(self, src_id: str, info: str = "") -> Share:
+        """
+        Receives a single result share meant for this party.
+        """
         label = f"result-share-{src_id}"
         if info != "":
             label += f"-{info}"
@@ -101,8 +102,8 @@ class SMCParty:
         """
         Sends a secret share to the corresponding participant.
         """
-        secret_id = int.from_bytes(secret_id, byteorder="big")
-        label = f"secret-share-{secret_id}"
+        secret_id_int = int.from_bytes(secret_id, byteorder="big")
+        label = f"secret-share-{secret_id_int}"
         print(f"SMCParty: Sending secret share {label}: {self.client_id} -> {dest_id}")
         payload = serialize_share(share)
         self.comm.send_private_message(dest_id, label, payload)
@@ -111,13 +112,18 @@ class SMCParty:
         """
         Receives a secret share meant for this party.
         """
-        secret_id = int.from_bytes(secret_id, byteorder="big")
-        label = f"secret-share-{secret_id}"
+        secret_id_int = int.from_bytes(secret_id, byteorder="big")
+        label = f"secret-share-{secret_id_int}"
         print(f"SMCParty: Receiving secret share {label}: -> {self.client_id}")
         payload = self.comm.retrieve_private_message(label)
         return deserialize_share(payload)
 
     def process_expression(self, expr: Expression) -> FieldElement:
+        """
+        Expression processing procedure, which uses a tree-traversal type to evaluate  
+        the expression from bottom to top.
+        """
+        # Depending on the expression type, invoke expression-specific node visiters.
         if isinstance(expr, AddOp):
             return self.process_add(expr)
         if isinstance(expr, SubOp):
@@ -128,24 +134,31 @@ class SMCParty:
             return self.process_scalar(expr)
         if isinstance(expr, Secret):
             return self.process_secret(expr)
+        raise RuntimeError("Unknown expression type")
 
     def process_secret(self, expr: Secret) -> Share:
+        # Receive the secret share from the server when we encounter a `Secret` leaf.
         return self.receive_secret_share(expr.id)
 
     def process_scalar(self, expr: Scalar) -> ScalarElement:
         return ScalarElement(expr.value)
 
     def process_add(self, expr: AddOp) -> Share:
+        # Simple expression + expression addition.
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
-        return left_share + right_share
+        result = left_share + right_share
+        assert isinstance(result, Share)
+        return result
 
     def process_mul(self, expr: MulOp) -> Share:
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
         # If either of the operands are scalars, then do simple scalar * share multiplication.
         if isinstance(left_share, ScalarElement) or isinstance(right_share, ScalarElement):
-            return left_share * right_share
+            result = left_share * right_share
+            assert isinstance(result, Share)
+            return result
         assert isinstance(left_share, Share)
         assert isinstance(right_share, Share)
         # Otherwise, do share * share multiplications
@@ -161,6 +174,7 @@ class SMCParty:
         return beaver_dist.execute(left_share, right_share)
 
     def process_sub(self, expr: SubOp) -> Share:
+        # Simple expression - expression subtraction.
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
         return left_share - right_share

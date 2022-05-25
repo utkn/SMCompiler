@@ -113,7 +113,7 @@ def test_suite2():
 
 def test_suite3():
     """
-    f(a, b, c) = (a + b + c) ∗ K
+    f(a, b, c) = (a + b + c) * K
     """
     alice_secret = Secret()
     bob_secret = Secret()
@@ -151,7 +151,7 @@ def test_suite4():
 
 def test_suite5():
     """
-    f(a, b, c) = (a ∗ K0 + b - c) + K1
+    f(a, b, c) = (a * K0 + b - c) + K1
     """
     alice_secret = Secret()
     bob_secret = Secret()
@@ -242,11 +242,11 @@ def test_suite8():
 
 if __name__ == "__main__":
     test_suite8()
-    # test_suite7()
-    # test_suite6()
-    # test_suite5()
-    # test_suite4()
-    # test_suite3()
-    # test_suite2()
-    # test_suite1()
+    test_suite7()
+    test_suite6()
+    test_suite5()
+    test_suite4()
+    test_suite3()
+    test_suite2()
+    test_suite1()
     pass

@@ -5,6 +5,9 @@ from ttp import TrustedParamGenerator
 
 
 class TestBeaverServer:
+    """
+    Represents a local Beaver multiplication server for testing purposes.
+    """
     def __init__(self, num_clients: int):
         self.ttp = TrustedParamGenerator()
         self.published_shares = {}
@@ -26,6 +29,7 @@ class TestBeaverServer:
 
 def create_test_beaver_distributor(server: TestBeaverServer, client_id: str, client_index: int,
                                    op_id: str) -> BeaverDistributor:
+    """Creates a Beaver client (i.e., distributor) for a given server."""
     return BeaverDistributor(labels=(op_id, f"{op_id}-X", f"{op_id}-Y"),
                              triplet_retriever=lambda label: server.retrieve_triplets(label, client_id),
                              blinded_share_publisher=lambda share, label: server.publish_share(share, label, client_id,

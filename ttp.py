@@ -44,9 +44,10 @@ class TrustedParamGenerator:
         assert client_id in self.participant_ids
         # If no triplets were generated for the given operation, generate the shares.          
         if op_id not in self.generated_shares:
-            # Choose random a, b, c.
+            # Choose random a, b.
             s_a = rand_Zq()
             s_b = rand_Zq()
+            # Compute c = a * b.
             s_c = s_a * s_b % default_q
             # Create the shares.
             a_shares = share_secret(s_a, len(self.participant_ids))
@@ -55,6 +56,7 @@ class TrustedParamGenerator:
             self.generated_shares[op_id] = (a_shares, b_shares, c_shares)
         # Get the appropriate shares.
         shares = self.generated_shares.get(op_id)
+        assert shares is not None
         i = self.participant_ids.index(client_id)
         # Return the triplet.
         return shares[0][i], shares[1][i], shares[2][i]

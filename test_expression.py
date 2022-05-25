@@ -8,7 +8,6 @@ MODIFY THIS FILE.
 from expression import Secret, Scalar
 
 
-# Example test, you can adapt it to your needs.
 def test_expr_construction():
     a = Secret(1)
     b = Secret(2)
