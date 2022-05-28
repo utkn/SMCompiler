@@ -5,7 +5,7 @@ MODIFY THIS FILE.
 """
 # You might want to import more classes if needed.
 
-from typing import Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 from communication import Communication
 from expression import AddOp, Expression, MulOp, Scalar, Secret, SubOp
@@ -36,8 +36,11 @@ class SMCParty:
     """
 
     def __init__(self, client_id: str, server_host: str, server_port: int, protocol_spec: ProtocolSpec,
-                 value_dict: Dict[Secret, int]):
-        self.comm = Communication(server_host, server_port, client_id)
+                 value_dict: Dict[Secret, int], communication = None):
+        if communication is None:
+            self.comm = Communication(server_host, server_port, client_id)
+        else:
+            self.comm = communication
 
         self.client_id = client_id
         self.protocol_spec = protocol_spec
@@ -51,7 +54,7 @@ class SMCParty:
         for secret, value in self.value_dict.items():
             all_participants = self.protocol_spec.participant_ids
             # Get the shares.
-            shares = share_secret(value, len(all_participants))
+            shares = self.share_secret(value, len(all_participants))
             # Send the shares to the corresponding participants.
             for participant, share in zip(all_participants, shares):
                 self.send_secret_share(participant, secret.id, share)
@@ -64,7 +67,13 @@ class SMCParty:
         # Retrieve the other resulting shares.
         all_result_shares = self.receive_all_result_shares()
         # Reconstruct & return.
-        return reconstruct_secret(all_result_shares)
+        return self.reconstruct_secret(all_result_shares)
+    
+    def share_secret(self, secret: int, num_shares: int) -> List[Share]:
+        return share_secret(secret, num_shares)
+
+    def reconstruct_secret(self, shares: List[Share]) -> int:
+        return reconstruct_secret(shares)
 
     def receive_all_result_shares(self, info: str = "") -> List[Share]:
         """
@@ -143,21 +152,19 @@ class SMCParty:
     def process_scalar(self, expr: Scalar) -> ScalarElement:
         return ScalarElement(expr.value)
 
-    def process_add(self, expr: AddOp) -> Share:
+    def process_add(self, expr: AddOp) -> Any:
         # Simple expression + expression addition.
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
         result = left_share + right_share
-        assert isinstance(result, Share)
         return result
 
-    def process_mul(self, expr: MulOp) -> Share:
+    def process_mul(self, expr: MulOp) -> Any:
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)
         # If either of the operands are scalars, then do simple scalar * share multiplication.
         if isinstance(left_share, ScalarElement) or isinstance(right_share, ScalarElement):
             result = left_share * right_share
-            assert isinstance(result, Share)
             return result
         assert isinstance(left_share, Share)
         assert isinstance(right_share, Share)
@@ -173,7 +180,7 @@ class SMCParty:
         # Perform the beaver multiplication.
         return beaver_dist.execute(left_share, right_share)
 
-    def process_sub(self, expr: SubOp) -> Share:
+    def process_sub(self, expr: SubOp) -> Any:
         # Simple expression - expression subtraction.
         left_share = self.process_expression(expr.left)
         right_share = self.process_expression(expr.right)

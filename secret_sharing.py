@@ -4,6 +4,7 @@ Secret sharing scheme.
 
 import random
 from abc import ABC
+import sys
 from typing import List, Tuple, Callable
 
 # NOTE: Keep this large enough to pass the tests.
@@ -127,6 +128,7 @@ def reconstruct_secret(shares: List[Share]) -> int:
 def serialize_share(share: Share) -> bytes:
     """Converts a share to its byte representation to be sent over the wire."""
     s = f"{share.index}|{share.value}"
+    print(f"Share size: {sys.getsizeof(s)}")
     return s.encode("utf-8")
 
 
