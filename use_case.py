@@ -1,6 +1,7 @@
 from multiprocessing import  Process
 from expression import Expression, MulOp, Scalar, Secret
 from protocol import ProtocolSpec
+from server import _set_value
 from smc_party import SMCParty
 from random import randint
 from typing import Any, Callable, Dict, List, Tuple
@@ -42,7 +43,7 @@ def consensus(bank_names) -> Tuple[Dict[str,List[List[Secret]]], List[Expression
     requester = bank_names[0]
     frauds_expr = secrets[requester][0][0]
     debt_expr = ((Scalar(12)*secrets[requester][1][0]*secrets[requester][1][1]) - secrets[requester][1][2])
-    income_expr = secrets[requester][2][2]*Scalar(12)
+    income_expr = (secrets[requester][2][2]*Scalar(12))
     cumulative = (secrets[requester][2][0]-secrets[requester][2][1])
     for name in bank_names[1:]: 
         frauds_expr += secrets[name][0][0]
@@ -65,7 +66,7 @@ class Bank(SMCParty):
         server_port: port of the server
         all_banks: names of all colaborating banks
         secrets: maps client_ids to its secret's references per operation
-        exprs: consensus expression per operation
+        exprs: list with consensus expression per operation
     """
     def __init__(self, client_id: str, server_host: str, server_port: int, all_banks: List[str], secrets: Dict[str,List[List[Secret]]], exprs: List[Expression] ,protocol_spec = None, value_dict = None, communication = None):
         self.partner_banks = all_banks.copy()
@@ -97,6 +98,7 @@ class Bank(SMCParty):
         time.sleep(len(self.partner_banks)) 
         # this bank's secret
         bank_secret = self.secrets[self.client_id][0][0] 
+
         expr = self.exprs[0]
         # Update Bank's value_dict attr
         frauds_count = self.get_costumer_frauds(customer_name)
@@ -107,6 +109,7 @@ class Bank(SMCParty):
         
         # Run SMC 
         total_frauds_count = self.run()
+         
         self.worker_lock.release()
         return total_frauds_count
           
@@ -125,12 +128,11 @@ class Bank(SMCParty):
         time.sleep(len(self.partner_banks)) 
         # - Bank's secrets
         # loan's monthly parcel (money amount)
-        bank_monthly_parcel = self.secrets[self.client_id][1][0] #Secret(id=bytes(self.client_id+'10','utf-8'))
+        bank_monthly_parcel = self.secrets[self.client_id][1][0] 
         # the total amount of years to pay the loan given by this bank
-        bank_loan_years = self.secrets[self.client_id][1][1] #Secret(id=bytes(self.client_id+'11','utf-8')) 
+        bank_loan_years = self.secrets[self.client_id][1][1]
         # the amount of money that has already been paid by the costumer to amortize the loan
-        bank_paid_loan = self.secrets[self.client_id][1][2] #Secret(id=bytes(self.client_id+'12','utf-8')) 
-
+        bank_paid_loan = self.secrets[self.client_id][1][2] 
         expr = self.exprs[1]
         # Update Bank's value_dict attr
         self.value_dict = {
@@ -144,7 +146,10 @@ class Bank(SMCParty):
         
         # Run SMC 
         total_debt = self.run()
+         
         self.worker_lock.release()
+        print(f"{self.client_id}: total_debt: {total_debt}")
+        
         return total_debt
 
     def get_money_estimate(self, customer_name: str, years: int):
@@ -158,7 +163,6 @@ class Bank(SMCParty):
         self.worker_lock.acquire()
 
         #request all banks for fraud info on the customer
-        #timestamp = str(time.time())
         self.comm.publish_message("estimatereq",bytes(customer_name, 'utf-8'))
 
         # wait 1 sec for responses
@@ -169,7 +173,6 @@ class Bank(SMCParty):
         # average amount of money that the customer spends per month
         bank_avg_monthly_spendings = self.secrets[self.client_id][2][1] 
         years_secret=self.secrets[self.client_id][2][2] 
-
         expr = self.exprs[2]
         # Update Bank's value_dict attr
         self.value_dict = {
@@ -184,6 +187,7 @@ class Bank(SMCParty):
         # Run SMC 
         total_estimate = self.run()
         self.worker_lock.release()
+        
         return total_estimate
 
     def colaborate(self, bank_name):
@@ -199,12 +203,10 @@ class Bank(SMCParty):
         time.sleep(len(self.partner_banks))
         while True:      
             req = self.comm.retrieve_public_message(bank_name, label)
-            if last==req: time.sleep(10) ; continue
-
+            if last==req: time.sleep(10) ; continue 
             if label_ind == 0:
                 #share fraud info
                 self.worker_lock.acquire()
-                self.comm.publish_message("fraudres",req)
                 bank_secret = self.secrets[self.client_id][0][0]
                 expr = self.exprs[0]
                 time.sleep(len(self.partner_banks))
@@ -216,10 +218,11 @@ class Bank(SMCParty):
                 self.protocol_spec = ProtocolSpec(expr=expr, participant_ids=self.all_banks)
                 # Run SMC 
                 total_frauds_count = self.run()
+                 
+                print(f"{self.client_id}: total_fraud: {total_frauds_count}")
             elif label_ind == 1:
                 #share debt info
                 self.worker_lock.acquire()
-                self.comm.publish_message("debtres",req)
                 # loan's monthly parcel (money amount)
                 bank_monthly_parcel = self.secrets[self.client_id][1][0]
                 # the total amount of years to pay the loan given by this bank
@@ -240,10 +243,11 @@ class Bank(SMCParty):
                 self.protocol_spec = ProtocolSpec(expr=expr, participant_ids=self.all_banks)
                 # Run SMC 
                 total_debt = self.run()
+                 
+                print(f"{self.client_id}: total_debt: {total_debt}")
             elif label_ind == 2:
                 self.worker_lock.acquire()
                 # share estimate earnings info
-                self.comm.publish_message("estimateres",req)
                 # average amount of money that the customer deposits per month
                 bank_avg_monthly_deposits = self.secrets[self.client_id][2][0] 
                 # average amount of money that the customer spends per month
@@ -259,11 +263,13 @@ class Bank(SMCParty):
                 self.protocol_spec = ProtocolSpec(expr=expr, participant_ids=self.all_banks)
                 # Run SMC 
                 total_estimate = self.run()
+                 
+                print(f"{self.client_id}: earnings: {total_estimate}")
             else:
                 self.worker_lock.release()
                 break    
             self.worker_lock.release()
-            time.sleep(10) 
+            time.sleep(3) 
 
     # -- Dummy methods
     def get_costumer_frauds(self, customer_name: str):

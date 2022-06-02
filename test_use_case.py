@@ -182,9 +182,8 @@ def income_requester(client_id,bank_names,secrets,exprs,customer_name,customer_p
     savings = bank.get_money_estimate(customer_name,customer_picked_years)
     queue.put(savings)
     
-def income(bank_names):
+def income(bank_names, customer_name = "John Doe"):
     secrets, exprs = consensus(bank_names) 
-    customer_name = "John Doe"
     customer_picked_years = 10 #years
     deposits = 500+int.from_bytes(bytes(bank_names[0]+customer_name,'utf-8'), byteorder="big")%500
     expenses = 10+int.from_bytes(bytes(bank_names[0]+customer_name,'utf-8'), byteorder="big")%400
@@ -222,96 +221,6 @@ def income(bank_names):
     time.sleep(2)
     print("Server and Clients stopped.")
 
-"""
-This test instanciates 5 different banks that colaborate between each other.
-1 of the banks, requests frauds' information of a customer, debt's info, and requests an estimation of savings of a customer after 10 years.
-All banks must be able to colaborate between each others sharing information and computing the result of all operations. 
-The requests are made sequentially.
-"""
-def test_all_info_5_banks():
-    bank_names = ["CreditBanq", "UBCS", "PostFini", "LosPollosHermanos", "MigosBank"]
-    all_info(bank_names)
-
-"""
-Same as test_all_info_5_banks() but only 2 banks are instanciated
-"""
-def test_all_info_2_banks():
-    bank_names = ["PostFini", "LosPollosHermanos"]
-    all_info(bank_names)
-# - Auxiliar functions for this test suite
-def all_requester(client_id,bank_names,secrets,exprs,customer_name,customer_picked_years,queue):
-    bank = Bank(
-        client_id,
-        "localhost",
-        _PORT,
-        all_banks=bank_names,
-        secrets=secrets,
-        exprs=exprs
-    )
-    print(f"{client_id}: Requesting fraud information of {customer_name}..")
-    fraud = bank.get_total_customer_frauds(customer_name)
-    queue.put(fraud)
-    time.sleep(10)
-    print(f"{client_id}: Requesting debt information of {customer_name}..")
-    debt = bank.get_total_customer_debt(customer_name)
-    queue.put(debt)
-    print(f"{client_id}: Requesting savings estimation of {customer_name} for {customer_picked_years} years..")
-    time.sleep(10)
-    saving = bank.get_money_estimate(customer_name,customer_picked_years)
-    queue.put(saving)
-
-def all_info(bank_names, customer_name = "John Doe"):
-    secrets, exprs = consensus(bank_names) 
-    customer_picked_years = 10 #years
-    expected_fraud = int.from_bytes(bytes(bank_names[0]+customer_name,'utf-8'), byteorder="big")%5
-    bank_monthly_parcel = 10+int.from_bytes(bytes(bank_names[0]+customer_name,'utf-8'), byteorder="big")%100
-    bank_loan_years = 1+int.from_bytes(bytes(bank_names[0]+customer_name,'utf-8'), byteorder="big")%8
-    bank_paid_loan = 10+int.from_bytes(bytes(bank_names[0]+customer_name,'utf-8'), byteorder="big")%100
-    expected_debt = (12*bank_monthly_parcel*bank_loan_years) - bank_paid_loan
-    deposits = 500+int.from_bytes(bytes(bank_names[0]+customer_name,'utf-8'), byteorder="big")%500
-    expenses = 10+int.from_bytes(bytes(bank_names[0]+customer_name,'utf-8'), byteorder="big")%400
-    expected_income = (12*customer_picked_years)
-    cumulative = deposits-expenses
-    # Start trusted Server
-    server = run_server(bank_names)
-    time.sleep(2)
-    # Colaborating banks and expected results
-    partner_banks = []
-    for name in bank_names[1:]:
-        partner_banks.append(Process(target=default_bank, args=(name,bank_names,secrets,exprs)))
-        # Compute expected result! (for testing purposes, the result depends on the banks' names)
-        deposits = 500+int.from_bytes(bytes(name+customer_name,'utf-8'), byteorder="big")%500
-        expenses = 10+int.from_bytes(bytes(name+customer_name,'utf-8'), byteorder="big")%400
-        cumulative += deposits-expenses
-        bank_monthly_parcel = 10+int.from_bytes(bytes(name+customer_name,'utf-8'), byteorder="big")%100
-        bank_loan_years = 1+int.from_bytes(bytes(name+customer_name,'utf-8'), byteorder="big")%8
-        bank_paid_loan = 10+int.from_bytes(bytes(name+customer_name,'utf-8'), byteorder="big")%100
-        expected_debt+=(12*bank_monthly_parcel*bank_loan_years) - bank_paid_loan
-        expected_fraud+=int.from_bytes(bytes(name+customer_name,'utf-8'), byteorder="big")%5
-    expected_income*=cumulative
-    for bank in partner_banks: bank.start() 
-    time.sleep(1)
-    # Requester bank
-    queue = Queue()
-    main_bank = Process(target=all_requester, args=(bank_names[0],bank_names,secrets,exprs,customer_name,customer_picked_years,queue))
-    main_bank.start()
-    # Wait for results
-    obtained_fraud = queue.get()
-    obtained_debt = queue.get()
-    obtained_income = queue.get()
-    print(f"{bank_names}: \n\t{customer_name} has {obtained_fraud} frauds in total. [expected: {expected_fraud}]\n\t{customer_name} has {obtained_debt} CHF total debt. [expected: {expected_debt}]\n\t{customer_name} is estimated to save {obtained_income} CHF in {customer_picked_years} years. [expected: {expected_income}]")
-    main_bank.terminate()
-    # Stop every process
-    for bank in partner_banks: bank.terminate() 
-    server.terminate()
-
-    # Assert obtained vs expected 
-    assert obtained_fraud == expected_fraud
-    assert obtained_debt == expected_debt
-    assert obtained_income == expected_income
-
-    time.sleep(2)
-    print("Server and Clients stopped.")
 
 
 if __name__ == "__main__":
@@ -321,6 +230,4 @@ if __name__ == "__main__":
     test_debt_5_banks()
     test_income_2_banks()
     test_income_5_banks()
-    test_all_info_2_banks()
-    test_all_info_5_banks()
 
