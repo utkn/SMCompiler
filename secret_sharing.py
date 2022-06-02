@@ -8,7 +8,7 @@ import sys
 from typing import List, Tuple, Callable
 
 # NOTE: Keep this large enough to pass the tests.
-default_q = 10337
+default_q = 520633 #10337
 
 
 def rand_Zq(q=default_q):
