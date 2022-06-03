@@ -163,7 +163,12 @@ def experiment_1(current_run: int, num_parties: int):
 def experiment_2(current_run: int, addition_per_secret: int):
     # (1 + ... + 1) + (2 + ... + 2) + ... + (5 + ... + 5)
     num_parties = 5
-    secrets = [[Secret()] * addition_per_secret for _ in range(num_parties)]
+    secrets = []
+    for _ in range(num_parties):
+        client_secrets = []
+        for _ in range(addition_per_secret):
+            client_secrets.append(Secret())
+        secrets.append(client_secrets)
     expr = reduce(lambda x, y: x + y, (reduce(lambda x, y: x + y, client_secrets) for client_secrets in secrets))
     parties = {f"P{i}": {} for i in range(num_parties)}
     for i, client_secrets in  enumerate(secrets):
@@ -176,7 +181,12 @@ def experiment_2(current_run: int, addition_per_secret: int):
 def experiment_3(current_run: int, mult_per_secret: int):
     # (1 * ... * 1) + (2 * ... * 2) + ... + (5 * ... * 5)
     num_parties = 5
-    secrets = [[Secret()] * mult_per_secret for _ in range(num_parties)]
+    secrets = []
+    for _ in range(num_parties):
+        client_secrets = []
+        for _ in range(mult_per_secret):
+            client_secrets.append(Secret())
+        secrets.append(client_secrets)
     expr = reduce(lambda x, y: x + y, (reduce(lambda x, y: x * y, client_secrets) for client_secrets in secrets))
     parties = {f"P{i}": {} for i in range(num_parties)}
     for i, client_secrets in  enumerate(secrets):

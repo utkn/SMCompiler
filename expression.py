@@ -147,4 +147,7 @@ class Secret(Expression):
         super().__init__(ExprType.SECRET, id)
 
     def __repr__(self):
-        return f"Secret({self.value if self.value is not None else ''})"
+        if self.value is None:
+            return f"Secret({self.id})"
+        else:
+            return f"Secret({self.value if self.value is not None else ''})"
