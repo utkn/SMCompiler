@@ -123,7 +123,7 @@ def run_processes(experiment_id, experiment_argument, current_run, server_args, 
     server = Process(target=smc_server, args=(server_args,))
     clients = [Process(target=measured_smc_client, args=(experiment_id, experiment_argument, current_run, queue, *args)) for args in client_args]
     server.start()
-    time.sleep(3)
+    time.sleep(5)
     for client in clients:
         client.start()
     results = list()
@@ -134,7 +134,7 @@ def run_processes(experiment_id, experiment_argument, current_run, server_args, 
     server.terminate()
     server.join()
     # To "ensure" the workers are dead.
-    time.sleep(2)
+    time.sleep(5)
     print("Server stopped.")
     return results
 
